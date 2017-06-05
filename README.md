@@ -14,10 +14,11 @@ Check Fulllogger check enable
 
 Using Samsung SideSync to Mirror display & control to your PC
 Change configuration Ini file 
+```
 > Change Windows title name of sidesync
 > Change X,Y of sidesync (location of you monitor)
 > Change SwExporter log location
 > Change log folder for autoit program
-
+```
 And set file path to your location and then Using autoit to decode Json from log file
 
