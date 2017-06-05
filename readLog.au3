@@ -194,7 +194,7 @@ Func RefillEnergy()
 EndFunc
 
 Func LogWrite($txt)
-   _FileWriteLog(@ScriptDir & "\" & @MDAY & @MON & @YEAR &".log", $txt)
+   _FileWriteLog("C:\SwLog\" & @MDAY & @MON & @YEAR &".log", $txt)
 EndFunc
 
 Func MainStatCheck($input)
