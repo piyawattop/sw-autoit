@@ -20,5 +20,7 @@ Change configuration Ini file
 > Change SwExporter log location
 > Change log folder for autoit program
 ```
-And set file path to your location and then Using autoit to decode Json from log file
+And using autoit to play for you
+
+... don't forget to Arena!!
 
