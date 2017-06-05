@@ -50,7 +50,7 @@ While 1
 				  LogWrite('Pass Check Spd Rune > 5')
 			   EndIf
 			   ;Check CRate Rune > 6
-			   if $jsObj.reward.crate.rune.sec_eff.item($j).item(0) = "9" And Int($jsObj.reward.crate.rune.rank) >= 4 And Int($jsObj.reward.crate.rune.sec_eff.item($j).item(1)) >= 6 Then
+			   if $jsObj.reward.crate.rune.sec_eff.item($j).item(0) = "9" And Int($jsObj.reward.crate.rune.rank) >= 4 And Int($jsObj.reward.crate.rune.sec_eff.item($j).item(1)) >= 5 Then
 				  $isKeepThisRune = True
 				  LogWrite('Pass Check CRate Rune > 6')
 			   EndIf
