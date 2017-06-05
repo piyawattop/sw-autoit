@@ -1,16 +1,23 @@
 #include <Date.au3>
 #include <File.au3>
 #include <OO_JSON.au3>
+
+
 HotKeySet("{f4}","quit")
-Local $x = 1010
-Local $y = 0
-Local $hWnd = WinGetHandle("Dev3m")
+Local Const $sFilePath = @ScriptDir & "\Config.ini"
+Local $sSidesyncTitle = IniRead($sFilePath, "Setting", "Title", "Default Value")
+
+
+Local $x = Int(IniRead($sFilePath, "Setting", "LocationX", "Default Value"))
+Local $y = Int(IniRead($sFilePath, "Setting", "LocationY", "Default Value"))
+Local $hWnd = WinGetHandle($sSidesyncTitle)
 WinActivate($hWnd)
 Local $aPos = WinGetPos($hWnd)
 Local $iCount = 0
 WinMove($hWnd, "", $x, $y, 910, 610)
 Dim $aLog, $TotalLine
-$fileLog = "C:\Users\piyaw\Documents\SwFile\full_log.txt"
+Local $fileLog = IniRead($sFilePath, "Setting", "SwExportLog", "Default Value")
+Local $sOutputLog = IniRead($sFilePath, "Setting", "OutputLog", "Default Value")
 $TimeStamp = FileGetTime($fileLog, 0, 1)
 _FileReadToArray($fileLog, $aLog)
 $TotalLine = $aLog[0]
@@ -194,7 +201,7 @@ Func RefillEnergy()
 EndFunc
 
 Func LogWrite($txt)
-   _FileWriteLog("C:\SwLog\" & @MDAY & @MON & @YEAR &".log", $txt)
+   _FileWriteLog($sOutputLog & @MDAY & @MON & @YEAR &".log", $txt)
 EndFunc
 
 Func MainStatCheck($input)
@@ -339,6 +346,6 @@ Func _StringStartsWith($string, $start, $case = 0)
 EndFunc   ;==>_StringStartsWith
 
 Func quit()
-   _FileWriteLog(@ScriptDir & "\" & @MDAY & @MON & @YEAR &".log", "Quit Program")
+   LogWrite(@ScriptDir & "\" & @MDAY & @MON & @YEAR &".log", "Quit Program")
     Exit
 EndFunc
