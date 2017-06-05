@@ -346,6 +346,6 @@ Func _StringStartsWith($string, $start, $case = 0)
 EndFunc   ;==>_StringStartsWith
 
 Func quit()
-   LogWrite(@ScriptDir & "\" & @MDAY & @MON & @YEAR &".log", "Quit Program")
-    Exit
+   LogWrite("Quit Program")
+   Exit
 EndFunc
