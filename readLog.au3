@@ -1,27 +1,41 @@
 #include <Date.au3>
 #include <File.au3>
 #include <OO_JSON.au3>
-
+#include <FileConstants.au3>
 
 HotKeySet("{f4}","quit")
 Local Const $sFilePath = @ScriptDir & "\Config.ini"
+Local Const $sRunePath = @ScriptDir & "\RuneFilter.json"
+
 Local $sSidesyncTitle = IniRead($sFilePath, "Setting", "Title", "Default Value")
-
-
 Local $x = Int(IniRead($sFilePath, "Setting", "LocationX", "Default Value"))
 Local $y = Int(IniRead($sFilePath, "Setting", "LocationY", "Default Value"))
+Local $loopRefill = Int(IniRead($sFilePath, "Setting", "LoopRefill", "Default Value"))
+Local $fileLog = IniRead($sFilePath, "Setting", "SwExportLog", "Default Value")
+Local $sOutputLog = IniRead($sFilePath, "Setting", "OutputLog", "Default Value")
+Local $sKeepRuneLog = IniRead($sFilePath, "Setting", "KeepRuneLog", "Default Value")
 Local $hWnd = WinGetHandle($sSidesyncTitle)
 WinActivate($hWnd)
 Local $aPos = WinGetPos($hWnd)
 Local $iCount = 0
 WinMove($hWnd, "", $x, $y, 910, 610)
 Dim $aLog, $TotalLine
-Local $fileLog = IniRead($sFilePath, "Setting", "SwExportLog", "Default Value")
-Local $sOutputLog = IniRead($sFilePath, "Setting", "OutputLog", "Default Value")
+Local $hFileOpen = FileOpen($sRunePath, $FO_READ)
+If $hFileOpen = -1 Then
+   MsgBox($MB_SYSTEMMODAL, "", "An error occurred when reading the file.")
+   Exit
+EndIf
+Local $sFileRead = FileRead($hFileOpen)
+FileClose($hFileOpen)
+$oJsRuneFilter = _OO_JSON_Init()
+Local $jsRuneFilter = $oJsRuneFilter.parse($sFileRead)
+LogWrite('JSON   : ' & $jsRuneFilter.RuneType.length)
 $TimeStamp = FileGetTime($fileLog, 0, 1)
 _FileReadToArray($fileLog, $aLog)
 $TotalLine = $aLog[0]
+Local $IsRefillEn = False
 While 1
+   CheckDie()
    If FileGetTime($fileLog, 0, 1) <> $TimeStamp Then
 	  ;LogWrite('$TimeStamp   : ' & $TimeStamp )
 	  $TimeStamp = FileGetTime($fileLog, 0, 1)
@@ -29,7 +43,7 @@ While 1
 	  If IsArray($aLog) Then
 		 $newLines = ""
 		 For $i = $TotalLine To $aLog[0]
-			If StringInStr($aLog[$i], '{"command":"BattleDungeonResult","ret_code":0') Then
+			If StringInStr($aLog[$i], '{"command":"Battle') And StringInStr($aLog[$i], '"ret_code":0') Then
 			   $newLines &= $aLog[$i]
 			EndIf
 		 Next
@@ -39,115 +53,86 @@ While 1
 	  Local $isKeepThisRune = False
 	  If $newLines = "" Then
 		 ;LogWrite("Empty Line") ;do nothing
-	  Else
+	  ElseIf StringInStr($newLines, '{"command":"BattleScenarioResult","ret_code":0') Then
+		 $oJSON = _OO_JSON_Init()
+		 Local $jsObj = $oJSON.parse($newLines)
+		 Local $runeIndx = StringInStr($newLines, '"crate":{"rune"')
+		 Sleep(4000)
+		 OpenBoxChest()
+		 If $runeIndx > 0 Then
+			SaleRune()
+		 Else
+			GetItemNotRune()
+		 EndIf
+		 ReplayClick()
+	  ElseIf StringInStr($newLines, '{"command":"BattleRiftDungeonResult","ret_code":0') Then
+		 Sleep(9000)
+		 OpenBoxChest()
+		 ReplayClick()
+	  ElseIf StringInStr($newLines, '{"command":"BattleTrialTowerResult_v2","ret_code":0') Then
+		 Sleep(5000)
+		 OpenBoxChest()
+		 GetItemNotRune()
+		 ReplayClick()
+	  ElseIf StringInStr($newLines, '{"command":"BattleDungeonResult","ret_code":0') Then
 		 Local $runeIndx = StringInStr($newLines, '"crate":{"rune"')
 		 If $runeIndx > 0 Then
 			$oJSON = _OO_JSON_Init()
 			Local $jsObj = $oJSON.parse($newLines)
 			LogWrite('Rune Star   : ' & $jsObj.reward.crate.rune.class )
 			LogWrite('Slot No     : ' & $jsObj.reward.crate.rune.slot_no )
-			LogWrite('Rune Set   : ' & MappingRuneClass($jsObj.reward.crate.rune.set_id) )
+			LogWrite('Rune Set    : ' & MappingRuneClass($jsObj.reward.crate.rune.set_id) )
 			LogWrite('Rune Rank   : ' & MappingRuneRank($jsObj.reward.crate.rune.rank) )
 			LogWrite('Main Stat   : ' & MappingRuneStat($jsObj.reward.crate.rune.pri_eff.item(0)) & " " & $jsObj.reward.crate.rune.pri_eff.item(1) )
-			For $j = 0 To $jsObj.reward.crate.rune.sec_eff.length - 1
-			   LogWrite('Sub Stat    : ' & MappingRuneStat($jsObj.reward.crate.rune.sec_eff.item($j).item(0)) & " " & $jsObj.reward.crate.rune.sec_eff.item($j).item(1) )
-			   ;Check Spd Rune > 5
-			   if $jsObj.reward.crate.rune.sec_eff.item($j).item(0) = "8" And Int($jsObj.reward.crate.rune.rank) >= 4 And Int($jsObj.reward.crate.rune.sec_eff.item($j).item(1)) >= 5 Then
-				  $isKeepThisRune = True
-				  LogWrite('Pass Check Spd Rune > 5')
-			   EndIf
-			   ;Check CRate Rune > 6
-			   if $jsObj.reward.crate.rune.sec_eff.item($j).item(0) = "9" And Int($jsObj.reward.crate.rune.rank) >= 4 And Int($jsObj.reward.crate.rune.sec_eff.item($j).item(1)) >= 5 Then
-				  $isKeepThisRune = True
-				  LogWrite('Pass Check CRate Rune > 6')
-			   EndIf
-			Next
-			;Rune 6 Star and Rank Hero or Legendary only
-			If Int($jsObj.reward.crate.rune.class) = 6 And Int($jsObj.reward.crate.rune.rank) >= 4 Then
-			   ;Check slot 2/4/6 Main stat
-			   If $jsObj.reward.crate.rune.slot_no = 2 or $jsObj.reward.crate.rune.slot_no = 4 or $jsObj.reward.crate.rune.slot_no = 6 Then
+
+			;Check slot 2/4/6 Main stat
+			If $jsObj.reward.crate.rune.slot_no = 2 or $jsObj.reward.crate.rune.slot_no = 4 or $jsObj.reward.crate.rune.slot_no = 6 Then
+			   If Int($jsObj.reward.crate.rune.class) = 6  Then
 				  $isKeepThisRune = MainStatCheck($jsObj.reward.crate.rune.pri_eff.item(0))
 				  LogWrite('Pass Check slot 2/4/6 Main stat')
-			   Else
-				  ;Slot 1/3/5
+			   EndIf
+			Else
+			   ;Slot 1/3/5
+			   For $j = 0 To $jsObj.reward.crate.rune.sec_eff.length - 1
+				  LogWrite('Sub Stat    : ' & MappingRuneStat($jsObj.reward.crate.rune.sec_eff.item($j).item(0)) & " " & $jsObj.reward.crate.rune.sec_eff.item($j).item(1) )
+				  ;Check Spd Rune > 5
+				  if $jsObj.reward.crate.rune.sec_eff.item($j).item(0) = "8" And Int($jsObj.reward.crate.rune.sec_eff.item($j).item(1)) >= 5 Then
+					 $isKeepThisRune = True
+					 LogWrite('Pass Check Spd Rune > 5')
+				  EndIf
+				  ;Check CRate Rune > 6
+				  if $jsObj.reward.crate.rune.sec_eff.item($j).item(0) = "9" And Int($jsObj.reward.crate.rune.sec_eff.item($j).item(1)) >= 5 Then
+					 $isKeepThisRune = True
+					 LogWrite('Pass Check CRate Rune > 6')
+				  EndIf
+			   Next
+			   If Int($jsObj.reward.crate.rune.class) = 6  Then
 				  $isKeepThisRune = True
 				  LogWrite('Slot 1/3/5')
 			   EndIf
 			EndIf
 
+
 			LogWrite("Keep this rune? : " & $isKeepThisRune )
+
 			Sleep(9000)
-			$pos=MouseGetPos()
-			MouseClick($MOUSE_CLICK_LEFT,$x+705, $y+143,1,0)
-			MouseMove($pos[0],$pos[1],0)
-			Sleep(1500)
-			$pos=MouseGetPos()
-			MouseClick($MOUSE_CLICK_LEFT,$x+705, $y+143,1,0)
-			MouseMove($pos[0],$pos[1],0)
-			Sleep(2000)
+			OpenBoxChest()
 			If $isKeepThisRune Then
-			   LogWrite("Get this rune")
+			   LogWriteKeepRune($jsObj)
 			   Sleep(500)
 			   $pos=MouseGetPos()
 			   MouseClick($MOUSE_CLICK_LEFT, $x+577, $y+465,1,0)
 			   MouseMove($pos[0],$pos[1],0)
 			Else
-			   LogWrite("Sell this rune")
-			   ;~ Click Ok on center
-			   Sleep(500)
-			   $pos=MouseGetPos()
-			   MouseClick($MOUSE_CLICK_LEFT, $x+434, $y+465,1,0)
-			   MouseMove($pos[0],$pos[1],0)
-			   ;~ Sale rune
 			   Sleep(1000)
-			   $pos=MouseGetPos()
-			   MouseClick($MOUSE_CLICK_LEFT, $x+434, $y+465,1,0)
-			   MouseMove($pos[0],$pos[1],0)
-			   ;~ Click On to sale
-			   Sleep(1000)
-			   $pos=MouseGetPos()
-			   MouseClick($MOUSE_CLICK_LEFT, $x+325, $y+370,1,0)
-			   MouseMove($pos[0],$pos[1],0)
+			   SaleRune()
 			EndIf
-			Sleep(2000)
-			;~ Click Replay
-			$pos=MouseGetPos()
-			MouseClick($MOUSE_CLICK_LEFT, $x+419, $y+336,2,0)
-			MouseMove($pos[0],$pos[1],0)
-			Sleep(2000)
-			RefillEnergy()
-			;~ Click Start button
-			$pos=MouseGetPos()
-			MouseClick($MOUSE_CLICK_LEFT, $x+749, 384,1,0)
-			MouseMove($pos[0],$pos[1],0)
-			Sleep(3000)
+			ReplayClick()
 		 Else
-			LogWrite("Not rune")
 			Sleep(9000)
-			$pos=MouseGetPos()
-			MouseClick($MOUSE_CLICK_LEFT,$x+705, $y+143,1,0)
-			MouseMove($pos[0],$pos[1],0)
-			Sleep(1500)
-			$pos=MouseGetPos()
-			MouseClick($MOUSE_CLICK_LEFT,$x+705, $y+143,1,0)
-			MouseMove($pos[0],$pos[1],0)
-			;~ Click Ok on center
-			Sleep(1500)
-			$pos=MouseGetPos()
-			MouseClick($MOUSE_CLICK_LEFT, $x+455, $y+462,1,0)
-			MouseMove($pos[0],$pos[1],0)
-			Sleep(2000)
-			;~ Click Replay
-			$pos=MouseGetPos()
-			MouseClick($MOUSE_CLICK_LEFT, $x+419, $y+336,2,0)
-			MouseMove($pos[0],$pos[1],0)
-			Sleep(2000)
-			RefillEnergy()
-			;~ Click Start button
-			$pos=MouseGetPos()
-			MouseClick($MOUSE_CLICK_LEFT, $x+749, 384,1,0)
-			MouseMove($pos[0],$pos[1],0)
-			Sleep(3000)
+			OpenBoxChest()
+			GetItemNotRune()
+			ReplayClick()
 		 EndIf
 	  EndIf
 
@@ -155,6 +140,103 @@ While 1
    EndIf
    Sleep(1000)
 WEnd
+
+Func OpenBoxChest()
+   $pos=MouseGetPos()
+   MouseClick($MOUSE_CLICK_LEFT,$x+866, $y+251,1,0)
+   Sleep(100)
+   MouseClick($MOUSE_CLICK_LEFT,$x+866, $y+251,1,0)
+   MouseMove($pos[0],$pos[1],0)
+   Sleep(1500)
+   $pos=MouseGetPos()
+   MouseClick($MOUSE_CLICK_LEFT,$x+866, $y+251,1,0)
+   MouseMove($pos[0],$pos[1],0)
+   Sleep(1500)
+EndFunc
+
+Func GetItemNotRune()
+   ;~ Click Ok on center
+   Sleep(1500)
+   $pos=MouseGetPos()
+   MouseClick($MOUSE_CLICK_LEFT, $x+455, $y+462,1,0)
+   MouseMove($pos[0],$pos[1],0)
+EndFunc
+
+Func ReplayClick()
+   Sleep(3000)
+   ;~ Click Replay
+   $pos=MouseGetPos()
+   MouseClick($MOUSE_CLICK_LEFT, $x+419, $y+336,2,0)
+   MouseMove($pos[0],$pos[1],0)
+   Sleep(2000)
+   ;If $IsRefillEn Then
+	  RefillEnergy()
+	;  $IsRefillEn = False
+   ;EndIf
+
+   ;~ Click Start button
+   $pos=MouseGetPos()
+   MouseClick($MOUSE_CLICK_LEFT, $x+749, 384,1,0)
+   MouseMove($pos[0],$pos[1],0)
+   Sleep(3000)
+EndFunc
+
+Func SaleRune()
+   LogWrite("Sell this rune")
+   ;~ Click Ok on center
+   Sleep(500)
+   $pos=MouseGetPos()
+   MouseClick($MOUSE_CLICK_LEFT, $x+434, $y+465,1,0)
+   MouseMove($pos[0],$pos[1],0)
+   ;~ Sale rune
+   Sleep(1000)
+   $pos=MouseGetPos()
+   MouseClick($MOUSE_CLICK_LEFT, $x+434, $y+465,1,0)
+   MouseMove($pos[0],$pos[1],0)
+   ;~ Click On to sale
+   Sleep(1000)
+   $pos=MouseGetPos()
+   MouseClick($MOUSE_CLICK_LEFT, $x+325, $y+370,1,0)
+   MouseMove($pos[0],$pos[1],0)
+EndFunc
+
+Func LogWriteKeepRune($jsObj)
+   _FileWriteLog($sKeepRuneLog & @MDAY & @MON & @YEAR &".log", 'Rune Star   : ' & $jsObj.reward.crate.rune.class )
+   _FileWriteLog($sKeepRuneLog & @MDAY & @MON & @YEAR &".log", 'Slot No     : ' & $jsObj.reward.crate.rune.slot_no )
+   _FileWriteLog($sKeepRuneLog & @MDAY & @MON & @YEAR &".log", 'Rune Set    : ' & MappingRuneClass($jsObj.reward.crate.rune.set_id) )
+   _FileWriteLog($sKeepRuneLog & @MDAY & @MON & @YEAR &".log", 'Rune Rank   : ' & MappingRuneRank($jsObj.reward.crate.rune.rank) )
+   _FileWriteLog($sKeepRuneLog & @MDAY & @MON & @YEAR &".log", 'Main Stat   : ' & MappingRuneStat($jsObj.reward.crate.rune.pri_eff.item(0)) & " " & $jsObj.reward.crate.rune.pri_eff.item(1) )
+   For $j = 0 To $jsObj.reward.crate.rune.sec_eff.length - 1
+	  _FileWriteLog($sKeepRuneLog & @MDAY & @MON & @YEAR &".log", 'Sub Stat    : ' & MappingRuneStat($jsObj.reward.crate.rune.sec_eff.item($j).item(0)) & " " & $jsObj.reward.crate.rune.sec_eff.item($j).item(1) )
+   Next
+EndFunc
+
+Func CheckDie()
+   Local $iLosePos = _StringStartsWith(Hex(PixelGetColor($x+289, $y+374), 6) , 'F9')
+   $iLosePos += _StringStartsWith(Hex(PixelGetColor($x+302, $y+369), 6) , 'F5')
+   $iLosePos += _StringStartsWith(Hex(PixelGetColor($x+302, $y+369), 6) , 'F7')
+   $iLosePos += _StringStartsWith(Hex(PixelGetColor($x+298, $y+376), 6) , 'F7')
+   If $iLosePos> 1  Then
+	  LogWrite("Die")
+	  Sleep(2000)
+	  $pos=MouseGetPos()
+	  MouseClick($MOUSE_CLICK_LEFT,$x+667, $y+376,1,0)
+	  MouseClick($MOUSE_CLICK_LEFT,$x+667, $y+330,1,0)
+	  MouseMove($pos[0],$pos[1],0)
+	  Sleep(2000)
+	  ;~ Click Replay
+	  $pos=MouseGetPos()
+	  MouseClick($MOUSE_CLICK_LEFT, $x+419, $y+336,2,0)
+	  MouseMove($pos[0],$pos[1],0)
+	  Sleep(2000)
+	  RefillEnergy()
+	  Sleep(2000)
+	  $pos=MouseGetPos()
+	  MouseClick($MOUSE_CLICK_LEFT, $x+749, 384,1,0)
+	  MouseMove($pos[0],$pos[1],0)
+	  Sleep(3000)
+   EndIf
+EndFunc
 
 Func RefillEnergy()
    Local $ColorRefillEn = Hex(PixelGetColor($x+425, $y+357), 6)
@@ -170,33 +252,45 @@ Func RefillEnergy()
    $iRefilEn += _StringStartsWith($ColorRefillEn , 'C9')
 
     If $iRefilEn > 0 Then
-   ;~ Click Yes for refill energy
-	  Sleep(1000)
-	  $pos=MouseGetPos()
-	  MouseClick($MOUSE_CLICK_LEFT, $x+385, $y+336,1,0)
-	  MouseMove($pos[0],$pos[1],0)
-	  Sleep(3000)
-	  $pos=MouseGetPos()
-	  MouseClick($MOUSE_CLICK_LEFT, $x+345, $y+279,1,0)
-	  MouseMove($pos[0],$pos[1],0)
-	  Sleep(2000)
-	  $pos=MouseGetPos()
-	  MouseClick($MOUSE_CLICK_LEFT, $x+426, $y+348,1,0)
-	  MouseMove($pos[0],$pos[1],0)
-	  Sleep(2000)
-	  $pos=MouseGetPos()
-	  MouseClick($MOUSE_CLICK_LEFT, $x+450, $y+353,1,0)
-	  MouseMove($pos[0],$pos[1],0)
-	  Sleep(2000)
-	  $pos=MouseGetPos()
-	  MouseClick($MOUSE_CLICK_LEFT, $x+452, $y+486,1,0)
-	  MouseMove($pos[0],$pos[1],0)
-	  Sleep(2000)
-	  $pos=MouseGetPos()
-	  MouseClick($MOUSE_CLICK_LEFT, $x+419, $y+336, 2,0)
-	  MouseMove($pos[0],$pos[1],0)
-	  Sleep(2000)
-
+	  If $loopRefill > 0 Then
+		 $loopRefill=$loopRefill-1
+		 LogWrite("Refill Remaining : " & $loopRefill)
+	  ;~ Click Yes for refill energy
+		 Sleep(1000)
+		 $pos=MouseGetPos()
+		 MouseClick($MOUSE_CLICK_LEFT, $x+385, $y+336,1,0)
+		 MouseMove($pos[0],$pos[1],0)
+		 Sleep(3000)
+		 $pos=MouseGetPos()
+		 MouseClick($MOUSE_CLICK_LEFT, $x+345, $y+279,1,0)
+		 MouseMove($pos[0],$pos[1],0)
+		 Sleep(2000)
+		 $pos=MouseGetPos()
+		 MouseClick($MOUSE_CLICK_LEFT, $x+426, $y+348,1,0)
+		 MouseMove($pos[0],$pos[1],0)
+		 Sleep(2000)
+		 $pos=MouseGetPos()
+		 MouseClick($MOUSE_CLICK_LEFT, $x+450, $y+353,1,0)
+		 MouseMove($pos[0],$pos[1],0)
+		 Sleep(2000)
+		 $pos=MouseGetPos()
+		 MouseClick($MOUSE_CLICK_LEFT, $x+452, $y+486,1,0)
+		 MouseMove($pos[0],$pos[1],0)
+		 Sleep(2000)
+		 $pos=MouseGetPos()
+		 MouseClick($MOUSE_CLICK_LEFT, $x+419, $y+336, 2,0)
+		 MouseMove($pos[0],$pos[1],0)
+		 Sleep(2000)
+	  Else
+		 Sleep(2000)
+		 $pos=MouseGetPos()
+		 MouseClick($MOUSE_CLICK_LEFT, $x+863, $y+26, 1,0)
+		 MouseMove($pos[0],$pos[1],0)
+		 Sleep(2000)
+		 ;Shutdown
+		 LogWrite("Shutdown")
+		 Shutdown (1)
+	  EndIf
    EndIf
 EndFunc
 

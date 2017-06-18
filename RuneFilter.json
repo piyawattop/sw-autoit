@@ -1,0 +1,105 @@
+{
+  "RuneType": [
+    {
+      "Swift": {
+        "Slot": [
+          {
+            "Number": "1",
+            "Filters": {
+              "Rank": "Hero",
+              "Sub": {
+                "SPD": "5",
+                "CRate": "5",
+                "ATK%": "5",
+                "HP%": "6",
+                "Star": "5"
+              }
+            }
+          },
+          {
+            "Number": "2",
+            "Filters": {
+              "Rank": "Rare",
+              "Main": {
+                "SPD": "7",
+                "ATK%": "11",
+                "DEF%": "11",
+                "HP%": "11",
+                "Star": "6"
+              },
+              "Sub": {
+                "SPD": "5",
+                "ATK%": "5",
+                "Star": "6"
+              }
+            }
+          },
+          {
+            "Number": "3",
+            "Filters": {
+              "Rank": "Rare",
+              "Sub": {
+                "SPD": "5",
+                "ATK%": "5",
+                "CRate": "5",
+                "Star": "5"
+              }
+            }
+          },
+          {
+            "Number": "4",
+            "Filters": {
+              "Rank": "Rare",
+              "Main": {
+                "CDmg": "11",
+                "ATK%": "11",
+                "DEF%": "11",
+                "HP%": "11",
+                "Star": "6"
+              },
+              "Sub": {
+                "SPD": "5",
+                "ATK%": "5",
+                "CRate": "5",
+                "Star": "6"
+              }
+            }
+          },
+          {
+            "Number": "5",
+            "Filters": {
+              "Rank": "Hero",
+              "Sub": {
+                "SPD": "5",
+                "ATK%": "5",
+                "CRate": "5",
+                "HP%": "5",
+                "Star": "5"
+              }
+            }
+          },
+          {
+            "Number": "6",
+            "Filters": {
+              "Rank": "Rare",
+              "Main": {
+                "ATK%": "11",
+                "DEF%": "11",
+                "HP%": "11",
+                "ACC": "11",
+                "Star": "6"
+              },
+              "Sub": {
+                "SPD": "5",
+                "ATK%": "5",
+                "CRate": "5",
+                "Star": "6"
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+
+}
