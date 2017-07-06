@@ -34,8 +34,9 @@ $TimeStamp = FileGetTime($fileLog, 0, 1)
 _FileReadToArray($fileLog, $aLog)
 $TotalLine = $aLog[0]
 Local $IsRefillEn = False
+Local $IsRuneFromRift = False
 While 1
-   CheckDie()
+   ;CheckDie()
    If FileGetTime($fileLog, 0, 1) <> $TimeStamp Then
 	  ;LogWrite('$TimeStamp   : ' & $TimeStamp )
 	  $TimeStamp = FileGetTime($fileLog, 0, 1)
@@ -66,8 +67,57 @@ While 1
 		 EndIf
 		 ReplayClick()
 	  ElseIf StringInStr($newLines, '{"command":"BattleRiftDungeonResult","ret_code":0') Then
-		 Sleep(9000)
-		 OpenBoxChest()
+		  $oJSON = _OO_JSON_Init()
+		 Local $jsObj = $oJSON.parse($newLines)
+		 Local $runeIndx = StringInStr($newLines, '"info":{"rune_id"')
+		 Local $craftIndx = StringInStr($newLines, '"info":{"rune_id"')
+
+		If $runeIndx > 0 Then
+		   Local $lastIdx = $jsObj.item_list.length - 1;
+			$IsRuneFromRift = True
+		    LogWrite('Rune Star   : ' & $jsObj.item_list.item($lastIdx).info.class )
+			LogWrite('Slot No     : ' & $jsObj.item_list.item($lastIdx).info.slot_no )
+			LogWrite('Rune Set    : ' & MappingRuneClass($jsObj.item_list.item($lastIdx).info.set_id) )
+			LogWrite('Rune Rank   : ' & MappingRuneRank($jsObj.item_list.item($lastIdx).info.rank) )
+			LogWrite('Main Stat   : ' & MappingRuneStat($jsObj.item_list.item($lastIdx).info.pri_eff.item(0)) & " " & $jsObj.item_list.item($lastIdx).info.pri_eff.item(1) )
+			If $jsObj.item_list.item($lastIdx).info.slot_no = 2 or $jsObj.item_list.item($lastIdx).info.slot_no = 4 or $jsObj.item_list.item($lastIdx).info.slot_no = 6 Then
+			   If Int($jsObj.item_list.item($lastIdx).info.class) = 6  Then
+				  $isKeepThisRune = MainStatCheck($jsObj.item_list.item($lastIdx).info.pri_eff.item(0))
+				  LogWrite('Pass Check slot 2/4/6 Main stat')
+			   EndIf
+			Else
+			   If Int($jsObj.item_list.item($lastIdx).info.class) = 6  Then
+				  $isKeepThisRune = True
+				  LogWrite('Slot 1/3/5')
+			   EndIf
+			EndIf
+			LogWrite("Keep this rune? : " & $isKeepThisRune )
+			Sleep(9000)
+			OpenBoxChest()
+			If $isKeepThisRune Then
+			   LogWriteKeepRune($jsObj)
+			   Sleep(500)
+			   $pos=MouseGetPos()
+			   MouseClick($MOUSE_CLICK_LEFT, $x+577, $y+465,1,0)
+			   MouseMove($pos[0],$pos[1],0)
+			Else
+			   Sleep(2000)
+			   SaleRune()
+			EndIf
+		 ElseIf $craftIndx > 0 Then
+			Sleep(9000)
+			OpenBoxChest()
+			Sleep(1000)
+			$pos=MouseGetPos()
+			MouseClick($MOUSE_CLICK_LEFT, $x+495, $y+401,1,0)
+			MouseMove($pos[0],$pos[1],0)
+		 Else
+			Sleep(9000)
+			OpenBoxChest()
+			Sleep(1000)
+			MouseClick($MOUSE_CLICK_LEFT, $x+495, $y+401,1,0)
+			GetItemNotRune()
+		 EndIf
 		 ReplayClick()
 	  ElseIf StringInStr($newLines, '{"command":"BattleTrialTowerResult_v2","ret_code":0') Then
 		 Sleep(5000)
@@ -138,7 +188,7 @@ While 1
 
 
    EndIf
-   Sleep(1000)
+   Sleep(2000)
 WEnd
 
 Func OpenBoxChest()
@@ -201,14 +251,25 @@ Func SaleRune()
 EndFunc
 
 Func LogWriteKeepRune($jsObj)
-   _FileWriteLog($sKeepRuneLog & @MDAY & @MON & @YEAR &".log", 'Rune Star   : ' & $jsObj.reward.crate.rune.class )
-   _FileWriteLog($sKeepRuneLog & @MDAY & @MON & @YEAR &".log", 'Slot No     : ' & $jsObj.reward.crate.rune.slot_no )
-   _FileWriteLog($sKeepRuneLog & @MDAY & @MON & @YEAR &".log", 'Rune Set    : ' & MappingRuneClass($jsObj.reward.crate.rune.set_id) )
-   _FileWriteLog($sKeepRuneLog & @MDAY & @MON & @YEAR &".log", 'Rune Rank   : ' & MappingRuneRank($jsObj.reward.crate.rune.rank) )
-   _FileWriteLog($sKeepRuneLog & @MDAY & @MON & @YEAR &".log", 'Main Stat   : ' & MappingRuneStat($jsObj.reward.crate.rune.pri_eff.item(0)) & " " & $jsObj.reward.crate.rune.pri_eff.item(1) )
-   For $j = 0 To $jsObj.reward.crate.rune.sec_eff.length - 1
+   If $isRuneFromRift = True Then
+	$IsRuneFromRift = True
+	  Local $lastIdx = $jsObj.item_list.length - 1;
+	  _FileWriteLog($sKeepRuneLog & @MDAY & @MON & @YEAR &".log", 'Rune Star   : ' & $jsObj.item_list.item($lastIdx).info.class )
+	  _FileWriteLog($sKeepRuneLog & @MDAY & @MON & @YEAR &".log", 'Slot No     : ' & $jsObj.item_list.item($lastIdx).info.slot_no )
+	  _FileWriteLog($sKeepRuneLog & @MDAY & @MON & @YEAR &".log", 'Rune Set    : ' & MappingRuneClass($jsObj.item_list.item($lastIdx).info.set_id) )
+	  _FileWriteLog($sKeepRuneLog & @MDAY & @MON & @YEAR &".log", 'Rune Rank   : ' & MappingRuneRank($jsObj.item_list.item($lastIdx).info.rank) )
+	  _FileWriteLog($sKeepRuneLog & @MDAY & @MON & @YEAR &".log", 'Main Stat   : ' & MappingRuneStat($jsObj.item_list.item($lastIdx).info.pri_eff.item(0)) & " " & $jsObj.item_list.item($lastIdx).info.pri_eff.item(1) )
+	Else
+	  _FileWriteLog($sKeepRuneLog & @MDAY & @MON & @YEAR &".log", 'Rune Star   : ' & $jsObj.reward.crate.rune.class )
+	  _FileWriteLog($sKeepRuneLog & @MDAY & @MON & @YEAR &".log", 'Slot No     : ' & $jsObj.reward.crate.rune.slot_no )
+	  _FileWriteLog($sKeepRuneLog & @MDAY & @MON & @YEAR &".log", 'Rune Set    : ' & MappingRuneClass($jsObj.reward.crate.rune.set_id) )
+	  _FileWriteLog($sKeepRuneLog & @MDAY & @MON & @YEAR &".log", 'Rune Rank   : ' & MappingRuneRank($jsObj.reward.crate.rune.rank) )
+	  _FileWriteLog($sKeepRuneLog & @MDAY & @MON & @YEAR &".log", 'Main Stat   : ' & MappingRuneStat($jsObj.reward.crate.rune.pri_eff.item(0)) & " " & $jsObj.reward.crate.rune.pri_eff.item(1) )
+	  For $j = 0 To $jsObj.reward.crate.rune.sec_eff.length - 1
 	  _FileWriteLog($sKeepRuneLog & @MDAY & @MON & @YEAR &".log", 'Sub Stat    : ' & MappingRuneStat($jsObj.reward.crate.rune.sec_eff.item($j).item(0)) & " " & $jsObj.reward.crate.rune.sec_eff.item($j).item(1) )
-   Next
+	  Next
+    EndIf
+
 EndFunc
 
 Func CheckDie()
